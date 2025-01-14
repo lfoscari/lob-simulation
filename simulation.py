@@ -34,7 +34,7 @@ INITIAL_STATE = {
 
 # ---- Choose a strategy
 
-PHI = 0.6
+PHI = 0.5
 KALPHA = 0.25
 KBETA = 0.25
 VALPHA = 0.5
