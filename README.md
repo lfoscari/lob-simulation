@@ -1,5 +1,6 @@
-Simulate the limit order book strategy.
-To get matplotlib visualization run
+Simulate the limit order book strategy. See `inflationary.pdf` and `not-inflationary.pdf` for examples.
+
+To get the matplotlib visualization run
 ```bash
 python3 simulation.py
 ```
