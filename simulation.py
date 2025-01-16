@@ -21,14 +21,14 @@ MIN_CASH = 0
 # ---- Set initial state
 
 INITIAL_STATE = {
-    "price": 1,
+    "price": 1_000,
     "taker": {
-        "inv": 1,
-        "cash": 1
+        "inv": 10,
+        "cash": 20_000
     },
     "maker": {
-        "inv": 1,
-        "cash": 1
+        "inv": 10,
+        "cash": 20_000
     }
 }
 
@@ -151,8 +151,9 @@ def plot_history(states):
     axs[2, 1].set_title("kappa")
     axs[2, 1].legend()
 
+    min_quantity = max(min(Qs, key=np.abs), 1e-100)
     axs[3, 0].scatter(time, Qs, s=0.5)
-    axs[3, 0].set_yscale("symlog", linthresh=min(Qs, key=np.abs))
+    axs[3, 0].set_yscale("symlog", linthresh=min_quantity)
     axs[3, 0].yaxis.get_major_locator().numticks = 6 # fix high num of ticks
     axs[3, 0].set_title("Q_t")
 
@@ -164,19 +165,19 @@ def plot_history(states):
 
     axs[4, 0].plot(time, I_Ts)
     axs[4, 0].set_title("Taker's inventory")
-    axs[4, 0].set_ylim([0, MAX_INV])
+    # axs[4, 0].set_ylim([0, MAX_INV])
         
     axs[4, 1].plot(time, C_Ts)
     axs[4, 1].set_title("Taker's cash")
-    axs[4, 1].set_ylim([0, MAX_CASH])
+    # axs[4, 1].set_ylim([0, MAX_CASH])
     
     axs[5, 0].plot(time, I_Ms)
     axs[5, 0].set_title("Maker's inventory")
-    axs[5, 0].set_ylim([0, MAX_INV])
+    # axs[5, 0].set_ylim([0, MAX_INV])
         
     axs[5, 1].plot(time, C_Ms)
     axs[5, 1].set_title("Maker's cash")
-    axs[5, 1].set_ylim([0, MAX_CASH])
+    # axs[5, 1].set_ylim([0, MAX_CASH])
     
     title = f"""
         {PHI=} {KALPHA=} {KBETA=} {VALPHA=} {VBETA=} ({"inflationary" if inflationary() else "not inflationary"})
