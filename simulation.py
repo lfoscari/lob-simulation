@@ -3,9 +3,14 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 
-# --- Set a time horizon
+# aggiungere oscillazione prezzo
+# aggiungere wealth discounted (moltiplicata per gamma^t)
+# plotta anche true mean di kappa (una linea)
+
+# --- Set a time horiz:on
 
 TIME_HORIZON = 1_000
+GAMMA = 0.9
 
 # ---- Pick a metastrategy
 # stochastic => buy or sell with prob. phi and 1 - phi
@@ -34,7 +39,7 @@ INITIAL_STATE = {
 
 # ---- Choose a strategy
 
-PHI = 0.7
+PHI = 0.4
 KALPHA = 0.4
 KBETA = 0.2
 VALPHA = 0.2
@@ -103,24 +108,34 @@ MAX_INV = INITIAL_STATE["taker"]["inv"] + INITIAL_STATE["maker"]["inv"]
 MAX_CASH = INITIAL_STATE["taker"]["cash"] + INITIAL_STATE["maker"]["cash"]
    
 def plot_history(states):
-    As = [A(state) for (state, _) in states]
-    Bs = [B(state) for (state, _) in states]
-    Ps = [state["price"] for (state, _) in states]
+    As = [A(s) for (s, _) in states]
+    Bs = [B(s) for (s, _) in states]
+    Ps = [s["price"] for (s, _) in states]
     Qs = [quantity for (_, quantity) in states]
 
-    CP_Ts = [state["taker"]["cash"] / state["price"] for (state, _) in states] 
-    CP_Ms = [state["maker"]["cash"] / state["price"] for (state, _) in states] 
-    I_Ts = [state["taker"]["inv"] for (state, _) in states] 
-    I_Ms = [state["maker"]["inv"] for (state, _) in states] 
-    C_Ts = [state["taker"]["cash"] for (state, _) in states] 
-    C_Ms = [state["maker"]["cash"] for (state, _) in states] 
-    W_Ts = [state["taker"]["cash"] + state["price"] * state["taker"]["inv"] for (state, _) in states]
-    W_Ms = [state["maker"]["cash"] + state["price"] * state["maker"]["inv"] for (state, _) in states]
+    QPs = [q * s["price"] for (s, q) in states] 
+        
+    I_Ts = [s["taker"]["inv"] for (s, _) in states] 
+    I_Ms = [s["maker"]["inv"] for (s, _) in states] 
 
-    kappas = [delta(state, quantity) / state["price"] for (state, quantity) in states]
+    C_Ts = [s["taker"]["cash"] for (s, _) in states] 
+    C_Ms = [s["maker"]["cash"] for (s, _) in states] 
+    
+    W_Ts = [s["taker"]["cash"] + s["price"] * s["taker"]["inv"] for (s, _) in states]
+    W_Ms = [s["maker"]["cash"] + s["price"] * s["maker"]["inv"] for (s, _) in states]
+
+    CP_Ts = [s["taker"]["cash"] / s["price"] for (s, _) in states] 
+    CP_Ms = [s["maker"]["cash"] / s["price"] for (s, _) in states] 
+    
+    dW_Ts = [(GAMMA ** t) * (s["taker"]["inv"] * s["price"]) for (t, (s, q)) in enumerate(states)]
+    dW_Ms = [(GAMMA ** t) * (s["maker"]["inv"] * s["price"]) for (t, (s, q)) in enumerate(states)]
+
+    kappas = [delta(s, q) / s["price"] for (s, q) in states]
+
     time = range(TIME_HORIZON)
+    cstime = 1 + np.cumsum(time)
 
-    fig, axs = plt.subplots(6, 2, sharex=True)
+    fig, axs = plt.subplots(7, 2, sharex=True)
     
     axs[0, 0].plot(time, As)
     axs[0, 0].set_title("A_t")
@@ -146,8 +161,8 @@ def plot_history(states):
     axs[2, 0].set_title("Price")
     axs[2, 0].set_yscale("log")
     
-    axs[2, 1].scatter(time, kappas, s = 2, label = "kappa")
-    axs[2, 1].plot(time, [sum(kappas[:t+1]) / (t+1) for t in time], label = "kappa average", alpha = .5)
+    axs[2, 1].scatter(time, kappas, s = .5)
+    axs[2, 1].plot(time, np.cumsum(kappas) / cstime, label = "avg", c = "purple")
     axs[2, 1].set_title("kappa")
     axs[2, 1].legend()
 
@@ -156,27 +171,35 @@ def plot_history(states):
     axs[3, 0].set_yscale("symlog", linthresh=min_quantity)
     axs[3, 0].yaxis.get_major_locator().numticks = 6 # fix high num of ticks
     axs[3, 0].set_title("Q_t")
-
-    axs[3, 1].plot(time, W_Ms, label="maker")
-    axs[3, 1].plot(time, W_Ts, label="taker")
-    axs[3, 1].set_title("Wealth")
-    axs[3, 1].set_yscale("log")
+    
+    axs[3, 1].scatter(time, QPs, s = 0.5)
+    axs[3, 1].plot(time, np.cumsum(QPs) / cstime, label = "avg", c = "purple")
+    axs[3, 1].set_title("Q_t * P_t")
     axs[3, 1].legend()
 
     axs[4, 0].plot(time, I_Ts)
     axs[4, 0].set_title("Taker's inventory")
-    # axs[4, 0].set_ylim([0, MAX_INV])
         
     axs[4, 1].plot(time, C_Ts)
     axs[4, 1].set_title("Taker's cash")
-    # axs[4, 1].set_ylim([0, MAX_CASH])
     
     axs[5, 0].plot(time, I_Ms)
     axs[5, 0].set_title("Maker's inventory")
-    # axs[5, 0].set_ylim([0, MAX_INV])
         
     axs[5, 1].plot(time, C_Ms)
     axs[5, 1].set_title("Maker's cash")
+
+    axs[6, 0].plot(time, W_Ms, label="maker")
+    axs[6, 0].plot(time, W_Ts, label="taker")
+    axs[6, 0].set_title("Wealth")
+    axs[6, 0].set_yscale("log")
+    axs[6, 0].legend()
+       
+    axs[6, 1].plot(time, np.cumsum(dW_Ms), label="maker")
+    axs[6, 1].plot(time, np.cumsum(dW_Ts), label="taker")
+    axs[6, 1].set_title("Discounted wealth")
+    axs[6, 1].set_yscale("log")
+    axs[6, 1].legend()
     # axs[5, 1].set_ylim([0, MAX_CASH])
     
     title = f"""
