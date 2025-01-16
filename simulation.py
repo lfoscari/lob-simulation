@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 # --- Set a time horizon
 
-TIME_HORIZON = 5_000
+TIME_HORIZON = 1_000
 
 # ---- Pick a metastrategy
 # stochastic => buy or sell with prob. phi and 1 - phi
@@ -34,11 +34,11 @@ INITIAL_STATE = {
 
 # ---- Choose a strategy
 
-PHI = 0.5
-KALPHA = 0.25
-KBETA = 0.25
-VALPHA = 0.5
-VBETA = 0.5
+PHI = 0.7
+KALPHA = 0.4
+KBETA = 0.2
+VALPHA = 0.2
+VBETA = 0.7
 
 assert 0 < PHI < 1
 assert 0 < KALPHA < 1/2
@@ -152,11 +152,14 @@ def plot_history(states):
     axs[2, 1].legend()
 
     axs[3, 0].scatter(time, Qs, s=0.5)
+    axs[3, 0].set_yscale("symlog", linthresh=min(Qs, key=np.abs))
+    axs[3, 0].yaxis.get_major_locator().numticks = 6 # fix high num of ticks
     axs[3, 0].set_title("Q_t")
 
-    axs[3, 1].plot(time, W_Ts, label="taker")
     axs[3, 1].plot(time, W_Ms, label="maker")
+    axs[3, 1].plot(time, W_Ts, label="taker")
     axs[3, 1].set_title("Wealth")
+    axs[3, 1].set_yscale("log")
     axs[3, 1].legend()
 
     axs[4, 0].plot(time, I_Ts)
@@ -191,11 +194,11 @@ def plot_history(states):
 # ---- Misc
 
 def sanity_check(state):
-    assert state["price"] > 0, "negative price"
-    assert state["taker"]["inv"] > MIN_INV, "taker inv too low"
-    assert state["maker"]["inv"] > MIN_INV, "maker inv too low"
-    assert state["taker"]["cash"] > MIN_CASH, "taker cash too low"
-    assert state["maker"]["cash"] > MIN_CASH, "maker cash too low"
+    assert state["price"] > 0, f"negative price ({state["price"]})"
+    assert state["taker"]["inv"] > MIN_INV, f"taker inv too low ({state["taker"]["inv"]})"
+    assert state["maker"]["inv"] > MIN_INV, f"maker inv too low ({state["maker"]["inv"]})"
+    assert state["taker"]["cash"] > MIN_CASH, f"taker cash too low ({state["taker"]["cash"]})"
+    assert state["maker"]["cash"] > MIN_CASH, f"maker cash too low ({state["maker"]["cash"]})"
 
 # ---- Play the game
 
