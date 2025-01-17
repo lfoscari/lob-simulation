@@ -40,9 +40,9 @@ INITIAL_STATE = {
 # ---- Choose a strategy
 
 PHI = 0.7
-KALPHA = 0.4
-KBETA = 0.2
-VALPHA = 0.2
+KALPHA = 0.2
+KBETA = 0.1
+VALPHA = 0.8
 VBETA = 0.7
 
 assert 0 < PHI < 1
@@ -110,30 +110,30 @@ def update(state, quantity):
 MAX_INV = INITIAL_STATE["taker"]["inv"] + INITIAL_STATE["maker"]["inv"]
 MAX_CASH = INITIAL_STATE["taker"]["cash"] + INITIAL_STATE["maker"]["cash"]
    
-def plot_history(states):
-    As = [A(s) for (s, _) in states]
-    Bs = [B(s) for (s, _) in states]
-    Ps = [s["price"] for (s, _) in states]
-    Qs = [quantity for (_, quantity) in states]
+def plot_history(history):
+    As = [A(s) for (s, _) in history]
+    Bs = [B(s) for (s, _) in history]
+    Ps = [s["price"] for (s, _) in history]
+    Qs = [quantity for (_, quantity) in history]
 
-    QPs = [q * s["price"] for (s, q) in states] 
+    QPs = [q * s["price"] for (s, q) in history] 
         
-    I_Ts = [s["taker"]["inv"] for (s, _) in states] 
-    I_Ms = [s["maker"]["inv"] for (s, _) in states] 
+    I_Ts = [s["taker"]["inv"] for (s, _) in history] 
+    I_Ms = [s["maker"]["inv"] for (s, _) in history] 
 
-    C_Ts = [s["taker"]["cash"] for (s, _) in states] 
-    C_Ms = [s["maker"]["cash"] for (s, _) in states] 
+    C_Ts = [s["taker"]["cash"] for (s, _) in history] 
+    C_Ms = [s["maker"]["cash"] for (s, _) in history] 
     
-    W_Ts = [s["taker"]["cash"] + s["price"] * s["taker"]["inv"] for (s, _) in states]
-    W_Ms = [s["maker"]["cash"] + s["price"] * s["maker"]["inv"] for (s, _) in states]
+    W_Ts = [s["taker"]["cash"] + s["price"] * s["taker"]["inv"] for (s, _) in history]
+    W_Ms = [s["maker"]["cash"] + s["price"] * s["maker"]["inv"] for (s, _) in history]
 
-    CP_Ts = [s["taker"]["cash"] / s["price"] for (s, _) in states] 
-    CP_Ms = [s["maker"]["cash"] / s["price"] for (s, _) in states] 
+    CP_Ts = [s["taker"]["cash"] / s["price"] for (s, _) in history] 
+    CP_Ms = [s["maker"]["cash"] / s["price"] for (s, _) in history] 
     
-    dW_Ts = [(GAMMA ** t) * (s["taker"]["inv"] * s["price"]) for (t, (s, q)) in enumerate(states)]
-    dW_Ms = [(GAMMA ** t) * (s["maker"]["inv"] * s["price"]) for (t, (s, q)) in enumerate(states)]
+    dW_Ts = [(GAMMA ** t) * (s["taker"]["inv"] * s["price"]) for (t, (s, q)) in enumerate(history)]
+    dW_Ms = [(GAMMA ** t) * (s["maker"]["inv"] * s["price"]) for (t, (s, q)) in enumerate(history)]
 
-    kappas = [delta(s, q) / s["price"] for (s, q) in states]
+    kappas = [delta(s, q) / s["price"] for (s, q) in history]
 
     time = np.arange(TIME_HORIZON)
     fig, axs = plt.subplots(8, 2, sharex=True)
@@ -209,6 +209,8 @@ def plot_history(states):
     axs[6, 1].set_yscale("log")
     axs[6, 1].legend()
     
+    axs[7, 0].plot(time, np.cumsum([c - INITIAL_STATE["taker"]["cash"] for c in C_Ts]) / TIME_HORIZON, label = "norm. taker")
+    axs[7, 0].plot(time, np.cumsum([c - INITIAL_STATE["maker"]["cash"] for c in C_Ms]) / TIME_HORIZON, label = "norm. maker")
     axs[7, 0].plot(time, np.cumsum([c - INITIAL_STATE["taker"]["cash"] for c in C_Ts]), label = "taker")
     axs[7, 0].plot(time, np.cumsum([c - INITIAL_STATE["maker"]["cash"] for c in C_Ms]), label = "maker")
     axs[7, 0].set_title("Cumulative cash difference")
