@@ -39,7 +39,7 @@ INITIAL_STATE = {
 
 # ---- Choose a strategy
 
-PHI = 0.4
+PHI = 0.7
 KALPHA = 0.4
 KBETA = 0.2
 VALPHA = 0.2
@@ -50,6 +50,9 @@ assert 0 < KALPHA < 1/2
 assert 0 < KBETA < 1/2
 assert 0 < VALPHA < 1
 assert 0 < VBETA < 1
+
+KAPPA_AVG = PHI * 2/3 * np.sqrt(2 * KALPHA * VALPHA) \
+    - (1 - PHI) * 2/3 * np.sqrt(2 * KBETA * VBETA)
 
 def inflationary():
     return PHI * np.log(1 + 2/3 * np.sqrt(2 * KALPHA * VALPHA)) + \
@@ -132,10 +135,8 @@ def plot_history(states):
 
     kappas = [delta(s, q) / s["price"] for (s, q) in states]
 
-    time = range(TIME_HORIZON)
-    cstime = 1 + np.cumsum(time)
-
-    fig, axs = plt.subplots(7, 2, sharex=True)
+    time = np.arange(TIME_HORIZON)
+    fig, axs = plt.subplots(8, 2, sharex=True)
     
     axs[0, 0].plot(time, As)
     axs[0, 0].set_title("A_t")
@@ -162,19 +163,26 @@ def plot_history(states):
     axs[2, 0].set_yscale("log")
     
     axs[2, 1].scatter(time, kappas, s = .5)
-    axs[2, 1].plot(time, np.cumsum(kappas) / cstime, label = "avg", c = "purple")
+    axs[2, 1].plot(time, np.cumsum(kappas) / (1 + time), label = "avg", c = "purple")
+    axs[2, 1].plot(time, [KAPPA_AVG] * TIME_HORIZON, alpha = .5, label = "expect", c = "orange")
+    axs[2, 1].plot(time, [0] * TIME_HORIZON, alpha = .2, c = "grey")
     axs[2, 1].set_title("kappa")
     axs[2, 1].legend()
 
     min_quantity = max(min(Qs, key=np.abs), 1e-100)
     axs[3, 0].scatter(time, Qs, s=0.5)
+    axs[3, 0].plot(time, [0] * TIME_HORIZON, color = "grey", alpha = .2)
     axs[3, 0].set_yscale("symlog", linthresh=min_quantity)
     axs[3, 0].yaxis.get_major_locator().numticks = 6 # fix high num of ticks
     axs[3, 0].set_title("Q_t")
     
     axs[3, 1].scatter(time, QPs, s = 0.5)
-    axs[3, 1].plot(time, np.cumsum(QPs) / cstime, label = "avg", c = "purple")
+    axs[3, 1].plot(time, np.cumsum(QPs) / (1 + time), label = "avg", c = "purple")
+    axs[3, 1].plot(time, [0] * TIME_HORIZON, color = "grey", alpha = .2)
     axs[3, 1].set_title("Q_t * P_t")
+    # min_amount = max(min(QPs, key=np.abs), 1e-100)
+    # axs[3, 1].set_yscale("symlog", linthresh=min_amount)
+    axs[3, 1].yaxis.get_major_locator().numticks = 6 
     axs[3, 1].legend()
 
     axs[4, 0].plot(time, I_Ts)
@@ -200,7 +208,11 @@ def plot_history(states):
     axs[6, 1].set_title("Discounted wealth")
     axs[6, 1].set_yscale("log")
     axs[6, 1].legend()
-    # axs[5, 1].set_ylim([0, MAX_CASH])
+    
+    axs[7, 0].plot(time, np.cumsum([c - INITIAL_STATE["taker"]["cash"] for c in C_Ts]), label = "taker")
+    axs[7, 0].plot(time, np.cumsum([c - INITIAL_STATE["maker"]["cash"] for c in C_Ms]), label = "maker")
+    axs[7, 0].set_title("Cumulative cash difference")
+    axs[7, 0].legend()
     
     title = f"""
         {PHI=} {KALPHA=} {KBETA=} {VALPHA=} {VBETA=} ({"inflationary" if inflationary() else "not inflationary"})
@@ -210,7 +222,7 @@ def plot_history(states):
     fig.suptitle(title)
 
     if len(sys.argv) > 1:
-        fig.set_size_inches(10, 16)
+        fig.set_size_inches(10, 18)
         plt.savefig(sys.argv[1], dpi=200)
     else:
         plt.show()
