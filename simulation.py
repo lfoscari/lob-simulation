@@ -9,7 +9,8 @@ import matplotlib.pyplot as plt
 
 # --- Set a time horiz:on
 
-TIME_HORIZON = 1_000
+TIME_HORIZON = 2_000
+AVG_RUNS = 1_000
 GAMMA = 0.9
 
 # ---- Pick a metastrategy
@@ -39,11 +40,11 @@ INITIAL_STATE = {
 
 # ---- Choose a strategy
 
-PHI = 0.7
-KALPHA = 0.2
-KBETA = 0.1
-VALPHA = 0.8
-VBETA = 0.7
+PHI = 0.4
+KALPHA = 0.4
+KBETA = 0.2
+VALPHA = 0.6
+VBETA = 0.4
 
 assert 0 < PHI < 1
 assert 0 < KALPHA < 1/2
@@ -51,13 +52,13 @@ assert 0 < KBETA < 1/2
 assert 0 < VALPHA < 1
 assert 0 < VBETA < 1
 
-KAPPA_AVG = PHI * 2/3 * np.sqrt(2 * KALPHA * VALPHA) \
+KAPPA = PHI * 2/3 * np.sqrt(2 * KALPHA * VALPHA) \
     - (1 - PHI) * 2/3 * np.sqrt(2 * KBETA * VBETA)
 
 def inflationary():
     return PHI * np.log(1 + 2/3 * np.sqrt(2 * KALPHA * VALPHA)) + \
-        (1 - PHI) * np.log(1 - 2/3 * np.sqrt(2 * KBETA * VBETA)) \
-            > 0
+      (1 - PHI) * np.log(1 - 2/3 * np.sqrt(2 * KBETA * VBETA)) \
+        > 0
 
 # --- Quantity selection
 
@@ -109,12 +110,18 @@ def update(state, quantity):
 
 MAX_INV = INITIAL_STATE["taker"]["inv"] + INITIAL_STATE["maker"]["inv"]
 MAX_CASH = INITIAL_STATE["taker"]["cash"] + INITIAL_STATE["maker"]["cash"]
+
+PHI_ALPHA = PHI * KALPHA * (1 + 2/3 * np.sqrt(2 * KALPHA * VALPHA)) 
+PHI_BETA = (1 - PHI) * KBETA * (1 - 2/3 * np.sqrt(2 * KBETA * VBETA)) 
+
+def avg(xs): return np.cumsum(xs) / np.arange(1, len(xs) + 1)
    
-def plot_history(history):
+def plot_history(history, inv, cash):
     As = [A(s) for (s, _) in history]
     Bs = [B(s) for (s, _) in history]
     Ps = [s["price"] for (s, _) in history]
-    Qs = [quantity for (_, quantity) in history]
+    Qs = [q for (_, q) in history]
+    Ds = [delta(s, q) for (s, q) in history]
 
     QPs = [q * s["price"] for (s, q) in history] 
         
@@ -130,13 +137,14 @@ def plot_history(history):
     CP_Ts = [s["taker"]["cash"] / s["price"] for (s, _) in history] 
     CP_Ms = [s["maker"]["cash"] / s["price"] for (s, _) in history] 
     
-    dW_Ts = [(GAMMA ** t) * (s["taker"]["inv"] * s["price"]) for (t, (s, q)) in enumerate(history)]
-    dW_Ms = [(GAMMA ** t) * (s["maker"]["inv"] * s["price"]) for (t, (s, q)) in enumerate(history)]
+    # dW_Ts = [(GAMMA ** t) * (s["taker"]["inv"] * s["price"]) for (t, (s, q)) in enumerate(history)]
+    # dW_Ms = [(GAMMA ** t) * (s["maker"]["inv"] * s["price"]) for (t, (s, q)) in enumerate(history)]
 
     kappas = [delta(s, q) / s["price"] for (s, q) in history]
 
     time = np.arange(TIME_HORIZON)
-    fig, axs = plt.subplots(8, 2, sharex=True)
+    fig, axs = plt.subplots(8, 2, figsize=(10, 23), constrained_layout=True) #, sharex=True)
+    # fig.tight_layout()
     
     axs[0, 0].plot(time, As)
     axs[0, 0].set_title("A_t")
@@ -163,22 +171,29 @@ def plot_history(history):
     axs[2, 0].set_yscale("log")
     
     axs[2, 1].scatter(time, kappas, s = .5)
-    axs[2, 1].plot(time, np.cumsum(kappas) / (1 + time), label = "avg", c = "purple")
-    axs[2, 1].plot(time, [KAPPA_AVG] * TIME_HORIZON, alpha = .5, label = "expect", c = "orange")
-    axs[2, 1].plot(time, [0] * TIME_HORIZON, alpha = .2, c = "grey")
+    axs[2, 1].plot(time, avg(kappas), label = "avg", c = "purple")
+    axs[2, 1].axhline(KAPPA, alpha = .5, label = "expect", c = "C3")
+    axs[2, 1].axhline(0, c = "grey", alpha = .2)
     axs[2, 1].set_title("kappa")
     axs[2, 1].legend()
 
-    min_quantity = max(min(Qs, key=np.abs), 1e-100)
-    axs[3, 0].scatter(time, Qs, s=0.5)
-    axs[3, 0].plot(time, [0] * TIME_HORIZON, color = "grey", alpha = .2)
-    axs[3, 0].set_yscale("symlog", linthresh=min_quantity)
+    # expected_first_quantity = \
+    #     PHI * KALPHA * min(INITIAL_STATE["maker"]["inv"], INITIAL_STATE["taker"]["cash"] / INITIAL_STATE["price"]) \
+    #     - (1 - PHI) * KBETA * min(INITIAL_STATE["taker"]["inv"], INITIAL_STATE["maker"]["cash"] / INITIAL_STATE["price"])
+    # psi = 1 - PHI * KALPHA - (1 - PHI) * KBETA
+    # axs[3, 0].plot(expected_first_quantity * np.cumprod([1] + ([psi] * TIME_HORIZON)), label = "mean", c = "pink")
+    min_quantity = max(abs(min(Qs, key=np.abs)), 1e-10)
+    axs[3, 0].scatter(time, Qs, s = 0.5)
+    axs[3, 0].plot(avg(Qs), label = "avg", c = "purple")
+    axs[3, 0].axhline(0, c = "grey", alpha = .2)
+    axs[3, 0].set_yscale("symlog", linthresh = min_quantity)
     axs[3, 0].yaxis.get_major_locator().numticks = 6 # fix high num of ticks
     axs[3, 0].set_title("Q_t")
+    axs[3, 0].legend()
     
     axs[3, 1].scatter(time, QPs, s = 0.5)
-    axs[3, 1].plot(time, np.cumsum(QPs) / (1 + time), label = "avg", c = "purple")
-    axs[3, 1].plot(time, [0] * TIME_HORIZON, color = "grey", alpha = .2)
+    axs[3, 1].plot(time, avg(QPs), label = "avg", c = "purple")
+    axs[3, 1].axhline(0, c = "grey", alpha = .2)
     axs[3, 1].set_title("Q_t * P_t")
     # min_amount = max(min(QPs, key=np.abs), 1e-100)
     # axs[3, 1].set_yscale("symlog", linthresh=min_amount)
@@ -186,36 +201,58 @@ def plot_history(history):
     axs[3, 1].legend()
 
     axs[4, 0].plot(time, I_Ts)
+    axs[4, 0].axhline(INITIAL_STATE["taker"]["inv"], label = "initial", c = "C2")
     axs[4, 0].set_title("Taker's inventory")
-        
+    axs[4, 0].legend()
+            
     axs[4, 1].plot(time, C_Ts)
+    axs[4, 1].plot(time, avg(C_Ts), label = "avg", c = "purple")
+    axs[4, 1].axhline((1 - PHI_ALPHA / (PHI_ALPHA + PHI_BETA)) * MAX_CASH, label = "expect", c = "C3")
     axs[4, 1].set_title("Taker's cash")
+    axs[4, 1].legend()
     
     axs[5, 0].plot(time, I_Ms)
+    axs[5, 0].axhline(INITIAL_STATE["maker"]["inv"], label = "initial", c = "C2")
     axs[5, 0].set_title("Maker's inventory")
+    axs[5, 0].legend()
         
+    # cash_seq = [INITIAL_STATE["maker"]["cash"]]
+    # for t in time: cash_seq.append(PHI_ALPHA * MAX_CASH + (1 - (PHI_ALPHA + PHI_BETA)) * cash_seq[-1])
+    # axs[5, 1].plot(cash_seq, label = "pred", c = "C3")
     axs[5, 1].plot(time, C_Ms)
+    axs[5, 1].plot(time, avg(C_Ms), label = "avg", c = "purple")
+    axs[5, 1].axhline(PHI_ALPHA / (PHI_ALPHA + PHI_BETA) * MAX_CASH, label = "expect", c = "C3")
     axs[5, 1].set_title("Maker's cash")
+    axs[5, 1].legend()
 
     axs[6, 0].plot(time, W_Ms, label="maker")
     axs[6, 0].plot(time, W_Ts, label="taker")
     axs[6, 0].set_title("Wealth")
     axs[6, 0].set_yscale("log")
     axs[6, 0].legend()
-       
-    axs[6, 1].plot(time, np.cumsum(dW_Ms), label="maker")
-    axs[6, 1].plot(time, np.cumsum(dW_Ts), label="taker")
-    axs[6, 1].set_title("Discounted wealth")
+           
+    min_quantity = max(min(Ds, key=np.abs), 1e-100)
+    axs[6, 1].scatter(time, Ds, s = 0.5)
+    axs[6, 1].plot(time, avg(Ds), label = "avg", c = "purple")
     axs[6, 1].set_yscale("log")
+    axs[6, 1].set_title("delta_t")
+    axs[6, 1].set_yscale("symlog", linthresh = min_quantity)
+    axs[6, 1].yaxis.get_major_locator().numticks = 6 # fix high num of ticks
     axs[6, 1].legend()
-    
-    axs[7, 0].plot(time, np.cumsum([c - INITIAL_STATE["taker"]["cash"] for c in C_Ts]) / TIME_HORIZON, label = "norm. taker")
-    axs[7, 0].plot(time, np.cumsum([c - INITIAL_STATE["maker"]["cash"] for c in C_Ms]) / TIME_HORIZON, label = "norm. maker")
-    axs[7, 0].plot(time, np.cumsum([c - INITIAL_STATE["taker"]["cash"] for c in C_Ts]), label = "taker")
-    axs[7, 0].plot(time, np.cumsum([c - INITIAL_STATE["maker"]["cash"] for c in C_Ms]), label = "maker")
-    axs[7, 0].set_title("Cumulative cash difference")
+
+    [inv_T, inv_M] = zip(*inv)
+    axs[7, 0].hist(inv_T, bins=MAX_INV * 2, label = "taker", alpha = 0.7)
+    axs[7, 0].hist(inv_M, bins=MAX_INV * 2, label = "maker", alpha = 0.7)
+    axs[7, 0].set_title("Distribution of final inventory across runs")
     axs[7, 0].legend()
-    
+
+    [cash_T, cash_M] = zip(*cash)
+    axs[7, 1].hist(cash_T, bins=MAX_INV * 2, label = "taker", alpha = 0.7)
+    axs[7, 1].hist(cash_M, bins=MAX_INV * 2, label = "maker", alpha = 0.7)
+    axs[7, 1].axvline(INITIAL_STATE["taker"]["cash"], label = "initial", c = "purple")
+    axs[7, 1].set_title("Distribution of final cash across runs")
+    axs[7, 1].legend()
+
     title = f"""
         {PHI=} {KALPHA=} {KBETA=} {VALPHA=} {VBETA=} ({"inflationary" if inflationary() else "not inflationary"})
         {METASTRATEGY} strategy with time horizon {TIME_HORIZON}
@@ -224,7 +261,6 @@ def plot_history(history):
     fig.suptitle(title)
 
     if len(sys.argv) > 1:
-        fig.set_size_inches(10, 18)
         plt.savefig(sys.argv[1], dpi=200)
     else:
         plt.show()
@@ -249,14 +285,25 @@ def main():
     state = INITIAL_STATE
     history = []
     
-    for t in range(TIME_HORIZON):
+    for _ in range(TIME_HORIZON):
          quantity = pick_quantity(state)
          history.append((state, quantity))
          state = update(state, quantity)
          sanity_check(state)
-         
     print(state)
-    plot_history(history)
+
+    # Compute average inventory and cash at the end
+    inv, cash = [], []
+    for _ in range(AVG_RUNS):
+        state = INITIAL_STATE
+        for _ in range(TIME_HORIZON):
+             quantity = pick_quantity(state)
+             state = update(state, quantity)
+             sanity_check(state)
+        inv.append((state["taker"]["inv"], state["maker"]["inv"]))
+        cash.append((state["taker"]["cash"], state["maker"]["cash"]))
+         
+    plot_history(history, inv, cash)
         
 if __name__ == "__main__":
     main()
