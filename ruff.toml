@@ -1,0 +1,10 @@
+line-length = 100
+
+[format]
+quote-style = "double"
+indent-style = "tab"
+
+[lint]
+# Avoid enforcing line-length violations
+ignore = ["E501"]
+

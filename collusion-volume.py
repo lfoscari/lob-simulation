@@ -7,10 +7,6 @@ from numpy.random import uniform as U
 RUNS = 10 ** 8
 EPS = np.finfo(float).eps
 
-print(f"runs: {RUNS}")
-print(f"error: {EPS}")
-print("---")
-
 # Feasibility intervals
 # Using EPS instead of zero because we draw from (0, 1),
 # while Numpy's uniform draws from [0, 1)
@@ -32,24 +28,45 @@ def show(infl, total = RUNS):
     perc = infl / total * 100
     print(f"infl {perc:.0f}%\tnon infl {100 - perc:.0f}%")
 
-infl = 0
+def random_values():
+    print(f"runs: {RUNS}")
+    print(f"error: {EPS}")
+    print("---")
 
-for t in range(RUNS):
-    phi = U(*PHI)
-    kalpha = U(*KALPHA)
-    kbeta = U(*KBETA)
-    valpha = U(*VALPHA)
-    vbeta = U(*VBETA)
+    infl = 0
 
-    m = mu(phi, kalpha, kbeta, valpha, vbeta)
-    k = kappa(phi, kalpha, kbeta, valpha, vbeta)
+    for t in range(RUNS):
+        phi = U(*PHI)
+        kalpha = U(*KALPHA)
+        kbeta = U(*KBETA)
+        valpha = U(*VALPHA)
+        vbeta = U(*VBETA)
 
-    # if m < 0 and k > 0:
-        # print(f"[mu={m}, kappa={k}] ({phi}, {kalpha}, {kbeta}, {valpha}, {vbeta})")
+        m = mu(phi, kalpha, kbeta, valpha, vbeta)
+        k = kappa(phi, kalpha, kbeta, valpha, vbeta)
 
-    infl += m > 0
+        # if m < 0 and k > 0:
+            # print(f"[mu={m}, kappa={k}] ({phi}, {kalpha}, {kbeta}, {valpha}, {vbeta})")
 
-    if (t + 1) % 100_000 == 0:
-        show(infl, t)
+        infl += m > 0
 
-show(infl)
+        if (t + 1) % 100_000 == 0:
+            show(infl, t)
+
+    show(infl)
+
+def approach():
+    phi = 15/16
+    kalpha = 1/2
+    kbeta = 0
+    valpha = 0
+    vbeta = 1
+
+    for e in np.logspace(.1, 0, endpoint=False):
+        e = e - 1
+        m = mu(phi, kalpha - e, kbeta + e, valpha + e, vbeta - e)
+        print("error", e, "μ", m) 
+
+if __name__ == "__main__":
+    # random_values()
+    approach()
