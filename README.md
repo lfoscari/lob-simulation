@@ -1,6 +1,6 @@
 ## `simulation.py`
 
-Run a simulation of the limit-order-book market for a given number of rounds and produce several plots. By editing the code you can fix an inflationary and a non-inflationary strategy, then run either one with the first argument (infl | non-infl). Optionally you can provide the name of a pdf where the script will save the results
+Run a simulation of the limit-order-book market for a given number of rounds and produce several plots. By editing the code you can fix an inflationary and a non-inflationary strategy, then run either one with the first argument (infl | not-infl). Optionally you can provide the name of a pdf where the script will save the results
 
 See `inflationary.pdf` and `not-inflationary.pdf` for examples.
 
