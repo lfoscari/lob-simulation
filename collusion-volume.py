@@ -24,9 +24,9 @@ def kappa(phi, kalpha, kbeta, valpha, vbeta):
     return phi * 2/3 * np.sqrt(2 * kalpha * valpha) - \
         (1 - phi) * 2/3 * np.sqrt(2 * kbeta * vbeta)
 
-def show(infl, total = RUNS):
+def show(infl, mu_avg, total = RUNS):
     perc = infl / total * 100
-    print(f"infl {perc:.0f}%\tnon infl {100 - perc:.0f}%")
+    print(f"infl {perc:.0f}%\tnon infl {100 - perc:.0f}%\tmu (avg): {mu_avg}")
 
 def random_values():
     print(f"runs: {RUNS}")
@@ -34,6 +34,7 @@ def random_values():
     print("---")
 
     infl = 0
+    mu_history = []
 
     for t in range(RUNS):
         phi = U(*PHI)
@@ -43,30 +44,31 @@ def random_values():
         vbeta = U(*VBETA)
 
         m = mu(phi, kalpha, kbeta, valpha, vbeta)
+        mu_history.append(m)
         k = kappa(phi, kalpha, kbeta, valpha, vbeta)
 
-        # if m < 0 and k > 0:
-            # print(f"[mu={m}, kappa={k}] ({phi}, {kalpha}, {kbeta}, {valpha}, {vbeta})")
+        if m < 0 and k > 0:
+          print(f"[mu={m}, kappa={k}] ({phi}, {kalpha}, {kbeta}, {valpha}, {vbeta})")
 
         infl += m > 0
 
         if (t + 1) % 100_000 == 0:
-            show(infl, t)
+            show(infl, np.average(mu_history), t)
 
     show(infl)
 
-def approach():
-    phi = 15/16
-    kalpha = 1/2
-    kbeta = 0
-    valpha = 0
-    vbeta = 1
+# def approach():
+#     phi = 15/16
+#     kalpha = 1/2
+#     kbeta = 0
+#     valpha = 0
+#     vbeta = 1
 
-    for e in np.logspace(.1, 0, endpoint=False):
-        e = e - 1
-        m = mu(phi, kalpha - e, kbeta + e, valpha + e, vbeta - e)
-        print("error", e, "μ", m) 
+#     for e in np.logspace(.1, 0, endpoint=False):
+#         e = e - 1
+#         m = mu(phi, kalpha - e, kbeta + e, valpha + e, vbeta - e)
+#         print("error", e, "μ", m) 
 
 if __name__ == "__main__":
-    # random_values()
-    approach()
+    random_values()
+    # approach()
