@@ -24,6 +24,14 @@ def kappa(phi, kalpha, kbeta, valpha, vbeta):
     return phi * 2/3 * np.sqrt(2 * kalpha * valpha) - \
         (1 - phi) * 2/3 * np.sqrt(2 * kbeta * vbeta)
 
+def root_test(phi, kalpha, kbeta, valpha, vbeta):
+    mu_eta = phi * (1 + 2/3 * np.sqrt(2 * kalpha * valpha)) + \
+        (1 - phi) * (1 - 2/3 * np.sqrt(2 * kbeta * vbeta))
+    mu_eta_squared = phi * (1 + 2/3 * np.sqrt(2 * kalpha * valpha))**2 + \
+        (1 - phi) * (1 - 2/3 * np.sqrt(2 * kbeta * vbeta))**2
+
+    return mu_eta > 1 and mu_eta_squared < 1
+
 def show(infl, mu_avg, total = RUNS):
     perc = infl / total * 100
     print(f"infl {perc:.0f}%\tnon infl {100 - perc:.0f}%\tmu (avg): {mu_avg}")
@@ -34,6 +42,7 @@ def random_values():
     print("---")
 
     infl = 0
+    root = 0
     mu_history = []
 
     for t in range(RUNS):
@@ -47,13 +56,15 @@ def random_values():
         mu_history.append(m)
         k = kappa(phi, kalpha, kbeta, valpha, vbeta)
 
-        if m < 0 and k > 0:
-          print(f"[mu={m}, kappa={k}] ({phi}, {kalpha}, {kbeta}, {valpha}, {vbeta})")
+        # if m < 0 and k > 0:
+          # print(f"[mu={m}, kappa={k}] ({phi}, {kalpha}, {kbeta}, {valpha}, {vbeta})")
 
         infl += m > 0
+        root += root_test(phi, kalpha, kbeta, valpha, vbeta)
 
         if (t + 1) % 100_000 == 0:
             show(infl, np.average(mu_history), t)
+            print("root", root)
 
     show(infl)
 
