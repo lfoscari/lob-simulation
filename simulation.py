@@ -172,7 +172,7 @@ def plot_history(history):
 	W_Ms = [s.maker.cash + s.price * s.maker.inv for (s, _) in history]
 
 	# Expected average price
-	EXP_Ps = [INITIAL_STATE.price * (1 - KAPPA) ** t for t in time]
+	EXP_Ps = [INITIAL_STATE.price * (1 + KAPPA) ** t for t in time]
 
 	fig, axs = plt.subplots(
 		8, 2,
