@@ -13,11 +13,11 @@ if len(sys.argv) < 2: usage()
 EPS = np.finfo(float).eps
 
 # Set the seed
-np.random.seed(11235813)
+# np.random.seed(11235813)
 
 # Sometimes the price might get too high or too low an Python complains, in
 # those chases, either tweak the parameters or reduce the time horizon.
-TIME_HORIZON = 1000
+TIME_HORIZON = 2000
 
 # ---- Define feasibility constraints
 
@@ -33,48 +33,64 @@ class dotdict(dict):
     __delattr__ = dict.__delitem__
 
 INITIAL_STATE = dotdict({
-	"price": 100,
-	"taker": dotdict({"inv": 10, "cash": 1000}),
-	"maker": dotdict({"inv": 10, "cash": 1000}),
+	"price": 10,
+	"taker": dotdict({"inv": 1, "cash": 20}),
+	"maker": dotdict({"inv": 1, "cash": 20}),
 })
 
 # ---- Choose a strategy
 
 if sys.argv[1] == "infl":
-	PHI = 0.9
-	KALPHA = 0.2
+	PHI = .5
+	KALPHA = 0.4
 	KBETA = 0.2
 	VALPHA = 0.4
 	VBETA = 0.2
 elif sys.argv[1] == "not-infl":
-	PHI = 0.7
+	PHI = 0.5
 	KALPHA = 0.2
-	KBETA = 0.3
+	KBETA = 0.5
 	VALPHA = 0.2
-	VBETA = 0.8
+	VBETA = 0.5
 	# Case in which mu < 0 but kappa > 0
 	# PHI = 0.33987522664445063
 	# KALPHA = 0.3532855079045728
 	# KBETA = 0.09549689052438949
 	# VALPHA = 0.7785194767364301
 	# VBETA = 0.6570065381636263
+	# Case in which mu < 0 but kappa > 0 for the no-root version
+	# PHI = 0.41791074687868834
+	# KALPHA = 0.21320553373165232
+	# KBETA = 0.23996855096094194
+	# VALPHA = 0.8115984031554568
+	# VBETA = 0.5053115241376473
 else:
 	usage()
 	
-assert 0 < PHI < 1
-assert 0 < KALPHA < 1 / 2
-assert 0 < KBETA < 1 / 2
-assert 0 < VALPHA < 1
-assert 0 < VBETA < 1
+# assert 0 < PHI < 1
+# assert 0 < KALPHA < 1 / 2
+# assert 0 < KBETA < 1 / 2
+# assert 0 < VALPHA < 1
+# assert 0 < VBETA < 1
 
-KAPPA = PHI * 2 / 3 * np.sqrt(2 * KALPHA * VALPHA) \
-	- (1 - PHI) * 2 / 3 * np.sqrt(2 * KBETA * VBETA)
+# NO-ROOT VERSION
 
-MU = PHI * np.log(1 + 2 / 3 * np.sqrt(2 * KALPHA * VALPHA)) \
-	+ (1 - PHI) * np.log(1 - 2 / 3 * np.sqrt(2 * KBETA * VBETA))
+KAPPA = PHI * 2/3 * np.sqrt(2) * KALPHA * VALPHA \
+	- (1 - PHI) * 2/3 * np.sqrt(2) * KBETA * VBETA
+
+MU = PHI * np.log(1 + 2/3 * np.sqrt(2) * KALPHA * VALPHA) \
+	+ (1 - PHI) * np.log(1 - 2/3 * np.sqrt(2) * KBETA * VBETA)
 
 def inflationary():
 	return MU > 0
+
+# def wealth_divergence_maker():
+# 	if KAPPA < 0: return False
+# 	return 1 + KAPPA > INITIAL_STATE.taker.cash / INITIAL_STATE.price * INITIAL_STATE.maker.inv
+
+# def wealth_divergence_taker():
+# 	if KAPPA < 0: return False
+# 	return 1 + KAPPA > INITIAL_STATE.maker.cash / INITIAL_STATE.price * INITIAL_STATE.taker.inv
 
 # SAFETY_TAKER = MU + (1 - PHI) * np.log(1 - KBETA)
 # SAFETY_MAKER = MU + PHI * np.log(1 - KALPHA)
@@ -91,14 +107,14 @@ def B(state):
 	return min((state.maker.cash - MIN_CASH) / state.price, state.taker.inv - MIN_INV)
 
 def pick_quantity(state):
-	return KALPHA * A(state) if np.random.random() < PHI else -KBETA * B(state)
+	return KALPHA**2 * A(state) if np.random.random() < PHI else -KBETA**2 * B(state)
 
 # ---- Price evolution
 
 def delta(state, quantity):
 	if quantity > 0:
-		return state.price * 2 / 3 * np.sqrt(2 * KALPHA * VALPHA)
-	return -state.price * 2 / 3 * np.sqrt(2 * KBETA * VBETA)
+		return state.price * 2/3 * np.sqrt(2) * KALPHA * VALPHA
+	return -state.price * 2/3 * np.sqrt(2) * KBETA * VBETA
 
 def update(state, quantity):
 	next_price = state.price + delta(state, quantity)
@@ -132,16 +148,16 @@ def avg(xs):
 MAX_INV = INITIAL_STATE.taker.inv + INITIAL_STATE.maker.inv
 MAX_CASH = INITIAL_STATE.taker.cash + INITIAL_STATE.maker.cash
 
-PHI_ALPHA = PHI * KALPHA * (1 + 2 / 3 * np.sqrt(2 * KALPHA * VALPHA))
-PHI_BETA = (1 - PHI) * KBETA * (1 - 2 / 3 * np.sqrt(2 * KBETA * VBETA))
+# PHI_ALPHA = PHI * KALPHA * (1 + 2/3 * np.sqrt(2 * KALPHA * VALPHA))
+# PHI_BETA = (1 - PHI) * KBETA * (1 - 2/3 * np.sqrt(2 * KBETA * VBETA))
 
-PSI = PHI * KALPHA + (1 - PHI) * KBETA
+# PSI = PHI * KALPHA + (1 - PHI) * KBETA
 
 # Only when the strategy is not inflationary
-EXPECTED_INVENTORY = MAX_INV * PHI * KALPHA / (PHI * KALPHA + (1 - PHI) * KBETA)
+# EXPECTED_INVENTORY = MAX_INV * PHI * KALPHA / (PHI * KALPHA + (1 - PHI) * KBETA)
 
 # Only when the strategy is inflationary
-EXPECTED_CASH = MAX_CASH * PHI_ALPHA / (PHI_ALPHA + PHI_BETA)
+# EXPECTED_CASH = MAX_CASH * PHI_ALPHA / (PHI_ALPHA + PHI_BETA)
 
 def plot_history(history):
 	time = np.arange(TIME_HORIZON)
@@ -218,8 +234,8 @@ def plot_history(history):
 	axs[3, 0].scatter(time, Qs, s=0.5)
 	axs[3, 0].plot(avg(Qs), label="avg", c="purple", linestyle="--")
 	axs[3, 0].axhline(0, c="grey", alpha=0.4)
-	axs[3, 0].set_yscale("symlog", linthresh=EPS)
-	axs[3, 0].yaxis.get_major_locator().numticks = 6
+	# axs[3, 0].set_yscale("symlog", linthresh=EPS)
+	# axs[3, 0].yaxis.get_major_locator().numticks = 6
 	axs[3, 0].set_title("Q_t")
 	axs[3, 0].legend()
 
@@ -227,20 +243,20 @@ def plot_history(history):
 	axs[3, 1].plot(avg(QPs), label="avg", c="purple", linestyle="--")
 	axs[3, 1].axhline(0, c="grey", alpha=0.4)
 	axs[3, 1].set_title("Q_t * P_t+1")
-	axs[3, 1].set_yscale("symlog", linthresh=EPS)
-	axs[3, 1].yaxis.get_major_locator().numticks = 6
+	# axs[3, 1].set_yscale("symlog", linthresh=EPS)
+	# axs[3, 1].yaxis.get_major_locator().numticks = 6
 	axs[3, 1].legend()
 
 	axs[4, 0].plot(I_Ts)
 	axs[4, 0].plot(avg(I_Ts), label="avg", c="purple", linestyle="--")
 	axs[4, 0].axhline(INITIAL_STATE.taker.inv, label="initial", c="C2")
-	axs[4, 0].axhline(EXPECTED_INVENTORY, label="expect", c="purple")
+	# axs[4, 0].axhline(EXPECTED_INVENTORY, label="expect", c="purple")
 	axs[4, 0].set_title("Taker's inventory")
 	axs[4, 0].legend()
 
 	axs[4, 1].plot(C_Ts)
 	axs[4, 1].plot(avg(C_Ts), label="avg", c="purple", linestyle="--")
-	axs[4, 1].axhline((1 - PHI_ALPHA / (PHI_ALPHA + PHI_BETA)) * MAX_CASH, label="expect", c="purple")
+	# axs[4, 1].axhline((1 - PHI_ALPHA / (PHI_ALPHA + PHI_BETA)) * MAX_CASH, label="expect", c="purple")
 	axs[4, 1].axhline(INITIAL_STATE.taker.cash, label="initial", c="C2")
 	axs[4, 1].set_title("Taker's cash")
 	axs[4, 1].legend()
@@ -248,14 +264,14 @@ def plot_history(history):
 	axs[5, 0].plot(I_Ms)
 	axs[5, 0].plot(avg(I_Ms), label="avg", c="purple", linestyle="--")
 	axs[5, 0].axhline(INITIAL_STATE.maker.inv, label="initial", c="C2")
-	axs[5, 0].axhline(MAX_INV - EXPECTED_INVENTORY, label="expect", c="purple")
+	# axs[5, 0].axhline(MAX_INV - EXPECTED_INVENTORY, label="expect", c="purple")
 	axs[5, 0].set_title("Maker's inventory")
 	axs[5, 0].legend()
 
 	axs[5, 1].plot(C_Ms)
 	axs[5, 1].plot(avg(C_Ms), label="avg", c="purple", linestyle="--")
 	axs[5, 1].axhline(INITIAL_STATE.maker.cash, label="initial", c="C2")
-	axs[5, 1].axhline(PHI_ALPHA / (PHI_ALPHA + PHI_BETA) * MAX_CASH, label="expect", c="purple")
+	# axs[5, 1].axhline(PHI_ALPHA / (PHI_ALPHA + PHI_BETA) * MAX_CASH, label="expect", c="purple")
 	axs[5, 1].set_title("Maker's cash")
 	axs[5, 1].legend()
 
@@ -281,6 +297,12 @@ def plot_history(history):
 	axs[7, 0].set_yscale("symlog", linthresh=EPS)
 	axs[7, 0].yaxis.get_major_locator().numticks = 6
 	axs[7, 0].legend()
+
+	# to remove
+	axs[7, 1].scatter(time, [s.maker.inv - s.taker.cash / s.price for (s, _) in history], s=0.5, label="A_t")
+	axs[7, 1].scatter(time, [s.taker.inv - s.maker.cash / s.price for (s, _) in history], s=0.5, label="B_t")
+	axs[7, 1].set_title("I - C/P")
+	axs[7, 1].legend()
 
 	title = f"""
         {PHI=:.2f} {KALPHA=:.2f} {KBETA=:.2f} {VALPHA=:.2f} {VBETA=:.2f} ({"inflationary" if inflationary() else "not inflationary"})
@@ -313,6 +335,9 @@ def main():
 		print("The proposed strategy IS inflationary")
 	else:
 		print("The proposed strategy IS NOT inflationary")
+
+	# print("The taker's wealth will diverge:", wealth_divergence_taker())
+	# print("The maker's wealth will diverge:", wealth_divergence_maker())
 
 	state = INITIAL_STATE
 	history = []

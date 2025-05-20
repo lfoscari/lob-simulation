@@ -5,7 +5,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 # A very small constant
-TINY = np.finfo(np.float64).tiny # 2e-308
+# TINY = np.finfo(np.float64).tiny # 2e-308
 EPS = np.finfo(np.float64).eps # 2e-16
 
 # Set the seed, if needed
@@ -16,7 +16,7 @@ DEFAULT_PHI = 0.5
 # ---- Length and amount of runs
 
 TIME_HORIZON = 1000
-RUNS = 50
+RUNS = 25
 
 # ---- Feasibility and starting position
 
@@ -94,27 +94,27 @@ def descent_in_unconstrained_space(grad_f, w, par_min, par_max, learning_rate):
 	tilde_w_one = tilde_w - learning_rate * grad_wrt_tilde_w 
 	return to_constrained(tilde_w_one, par_min, par_max)
 
-# def extra_ascent_in_unconstrained_space(grad_f, w, par_min, par_max, learning_rate):
-# 	tilde_w = to_unconstrained(w, par_min, par_max)
-# 	grad_wrt_tilde_w = grad_f(w) * dx_dy(tilde_w, par_min, par_max)
+def extra_ascent_in_unconstrained_space(grad_f, w, par_min, par_max, learning_rate):
+	tilde_w = to_unconstrained(w, par_min, par_max)
+	grad_wrt_tilde_w = grad_f(w) * dx_dy(tilde_w, par_min, par_max)
 
-# 	tilde_w_half = tilde_w + learning_rate * grad_wrt_tilde_w
-# 	w_half = to_constrained(tilde_w_half, par_min, par_max)
-# 	grad_wrt_tilde_w_half = grad_f(w_half) * dx_dy(tilde_w_half, par_min, par_max)
+	tilde_w_half = tilde_w + learning_rate * grad_wrt_tilde_w
+	w_half = to_constrained(tilde_w_half, par_min, par_max)
+	grad_wrt_tilde_w_half = grad_f(w_half) * dx_dy(tilde_w_half, par_min, par_max)
 
-# 	tilde_w_one = tilde_w + learning_rate * grad_wrt_tilde_w_half
-# 	return to_constrained(tilde_w_one, par_min, par_max)
+	tilde_w_one = tilde_w + learning_rate * grad_wrt_tilde_w_half
+	return to_constrained(tilde_w_one, par_min, par_max)
 
-# def extra_descent_in_unconstrained_space(grad_f, w, par_min, par_max, learning_rate):
-# 	tilde_w = to_unconstrained(w, par_min, par_max)
-# 	grad_wrt_tilde_w = grad_f(w) * dx_dy(tilde_w, par_min, par_max)
+def extra_descent_in_unconstrained_space(grad_f, w, par_min, par_max, learning_rate):
+	tilde_w = to_unconstrained(w, par_min, par_max)
+	grad_wrt_tilde_w = grad_f(w) * dx_dy(tilde_w, par_min, par_max)
 
-# 	tilde_w_half = tilde_w - learning_rate * grad_wrt_tilde_w
-# 	w_half = to_constrained(tilde_w_half, par_min, par_max)
-# 	grad_wrt_tilde_w_half = grad_f(w_half) * dx_dy(tilde_w_half, par_min, par_max)
+	tilde_w_half = tilde_w - learning_rate * grad_wrt_tilde_w
+	w_half = to_constrained(tilde_w_half, par_min, par_max)
+	grad_wrt_tilde_w_half = grad_f(w_half) * dx_dy(tilde_w_half, par_min, par_max)
 
-# 	tilde_w_one = tilde_w - learning_rate * grad_wrt_tilde_w_half
-# 	return to_constrained(tilde_w_one, par_min, par_max)
+	tilde_w_one = tilde_w - learning_rate * grad_wrt_tilde_w_half
+	return to_constrained(tilde_w_one, par_min, par_max)
 
  # ---- Strategy
 
@@ -131,23 +131,29 @@ class Strategy:
 
 	def kalpha_grad(self, kalpha):
 		# return self.valpha / (4 * kalpha * self.valpha + 3 * np.sqrt(2 * kalpha * self.valpha))
-		c = 2/3 * np.sqrt(2 * self.valpha)
-		return c / (2 * (np.sqrt(kalpha) - c * kalpha))
+		# c = 2/3 * np.sqrt(2 * self.valpha)
+		# return c / (2 * (np.sqrt(kalpha) - c * kalpha))
+
+		# I'M IGNORING CONSTANTS IN ALL THE GRADIENTS
+		return self.valpha / (1 + kalpha * self.valpha)
     
 	def kbeta_grad(self, kbeta):
 		# return self.vbeta / (4 * kbeta * self.vbeta - 3 * np.sqrt(2 * kbeta * self.vbeta))
-		c = 2/3 * np.sqrt(2 * self.vbeta)
-		return -c / (2 * (np.sqrt(kbeta) - c * kbeta))
+		# c = 2/3 * np.sqrt(2 * self.vbeta)
+		# return -c / (2 * (np.sqrt(kbeta) - c * kbeta))
+		return -self.vbeta / (1 - kbeta * self.vbeta)
 
 	def valpha_grad(self, valpha):
 		# return self.valpha / (4 * self.kalpha * valpha + 3 * np.sqrt(2 * self.kalpha * valpha))
-		c = 2/3 * np.sqrt(2 * self.kalpha)
-		return c / (2 * (np.sqrt(valpha) - c * valpha))
+		# c = 2/3 * np.sqrt(2 * self.kalpha)
+		# return c / (2 * (np.sqrt(valpha) - c * valpha))
+		return self.kalpha / (1 + self.kalpha * valpha)
 
 	def vbeta_grad(self, vbeta):
 		# return self.kbeta / (4 * self.kbeta * vbeta - 3 * np.sqrt(2 * self.kbeta * vbeta))
-		c = 2/3 * np.sqrt(2 * self.kbeta)
-		return -c / (2 * (np.sqrt(vbeta) - c * vbeta))
+		# c = 2/3 * np.sqrt(2 * self.kbeta)
+		# return -c / (2 * (np.sqrt(vbeta) - c * vbeta))
+		return -self.kbeta / (1 - self.kbeta * vbeta)
 
 
 	def kalpha_ascent(self):
@@ -200,28 +206,28 @@ class Strategy:
 	# 	return extra_descent_in_unconstrained_space(self.vbeta_grad, self.vbeta, 0, 1, self.learning_rate)
 
 	def mu(self):
-		return self.phi * (1 + 2/3 * np.sqrt(2 * self.kalpha * self.valpha)) \
-			+ (1 - self.phi) * (1 - 2/3 * np.sqrt(2 * self.kbeta * self.vbeta))
+		return self.phi * np.log(1 + 2/3 * np.sqrt(2) * self.kalpha * self.valpha) \
+			+ (1 - self.phi) * np.log(1 - 2/3 * np.sqrt(2) * self.kbeta * self.vbeta)
 
 	def inflationary(self):
 		return self.mu() > 0
 
 	def quantity(self, state):
 		if np.random.random() < self.phi:
-			return self.kalpha * A(state) 
-		return -self.kbeta * B(state)
+			return self.kalpha ** 2 * A(state) 
+		return -self.kbeta ** 2 * B(state)
 
 	def delta(self, state, quantity):
 		if quantity > 0:
-			return state.price * 2/3 * np.sqrt(2 * self.kalpha * self.valpha)
-		return -state.price * 2/3 * np.sqrt(2 * self.kbeta * self.vbeta)
+			return state.price * 2/3 * np.sqrt(2) * self.kalpha * self.valpha
+		return -state.price * 2/3 * np.sqrt(2) * self.kbeta * self.vbeta
 
 	def generate(inflationary = None):
-		# phi = np.random.uniform(EPS, 1)
-		kalpha = np.random.uniform(TINY, 1/2)
-		kbeta = np.random.uniform(TINY, 1/2)
-		valpha = np.random.uniform(TINY, 1)
-		vbeta = np.random.uniform(TINY, 1)
+		# phi = np.random.uniform(0, 1)
+		kalpha = np.random.uniform(0, 1/2)
+		kbeta = np.random.uniform(0, 1/2)
+		valpha = np.random.uniform(0, 1)
+		vbeta = np.random.uniform(0, 1)
 
 		s = Strategy(kalpha, kbeta, valpha, vbeta)
 		if inflationary is None or s.inflationary() == inflationary: return s
@@ -273,6 +279,7 @@ def plot_all_runs(collaborative_history, competitive_history):
         Starting strategy {starting_strategy}
         Starting positions [taker I: {INITIAL_STATE.taker.inv}, C: {INITIAL_STATE.taker.cash}] [maker inv: {INITIAL_STATE.maker.inv}, cash: {INITIAL_STATE.maker.cash}]
         Time horizon: {TIME_HORIZON}    Runs: {RUNS}     Learning rate: {starting_strategy.learning_rate:.4f}
+        (note: these are log values on linear plots)
     """
 	fig.suptitle(title)
 
@@ -340,10 +347,10 @@ def plot_run(history, axs, label):
 
 def main():
 	# Draw a random strategy
-	starting_strategy = Strategy.generate()
+	# starting_strategy = Strategy.generate()
 
 	# Draw a random inflationary strategy
-	# starting_strategy = Strategy.generate(inflationary=True)
+	starting_strategy = Strategy.generate(inflationary=True)
 	
 	# Draw a random non-inflationary strategy
 	# starting_strategy = Strategy.generate(inflationary=True)
@@ -398,8 +405,8 @@ vbeta={starting_strategy.vbeta},
 			# Update strategy
 			strategy = Strategy(
 				strategy.kalpha_ascent(),
-				strategy.kbeta_descent(),
-				strategy.valpha_ascent(),
+				strategy.kbeta_ascent(),
+				strategy.valpha_descent(),
 				strategy.vbeta_descent(),
 			)
 

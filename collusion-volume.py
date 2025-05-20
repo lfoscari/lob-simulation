@@ -4,48 +4,34 @@ from numpy.random import uniform as U
 # This script simply picks random values of the parameters and checks if they
 # correspond to inflationary or not inflationary strategies.
 
-RUNS = 10 ** 8
-EPS = np.finfo(float).eps
+POWER = 1
 
 # Feasibility intervals
-# Using EPS instead of zero because we draw from (0, 1),
-# while Numpy's uniform draws from [0, 1)
-PHI = (EPS, 1)
-KALPHA = (EPS, 1/2)
-KBETA = (EPS, 1/2)
-VALPHA = (EPS, 1)
-VBETA = (EPS, 1)
+PHI = (0, 1)
+# KALPHA = (0, 1/2)
+# KBETA = (0, 1/2)
+KALPHA = (0, 1)
+KBETA = (0, 1)
+VALPHA = (0, 1)
+VBETA = (0, 1)
 
 def mu(phi, kalpha, kbeta, valpha, vbeta):
-    return phi * np.log(1 + 2/3 * np.sqrt(2 * kalpha * valpha)) + \
-        (1 - phi) * np.log(1 - 2/3 * np.sqrt(2 * kbeta * vbeta))
+    return phi * np.log(1 + 2/3 * np.sqrt(2) * (kalpha * valpha)**POWER) + \
+        (1 - phi) * np.log(1 - 2/3 * np.sqrt(2) * (kbeta * vbeta)**POWER)
 
 def kappa(phi, kalpha, kbeta, valpha, vbeta):
-    return phi * 2/3 * np.sqrt(2 * kalpha * valpha) - \
-        (1 - phi) * 2/3 * np.sqrt(2 * kbeta * vbeta)
-
-def root_test(phi, kalpha, kbeta, valpha, vbeta):
-    mu_eta = phi * (1 + 2/3 * np.sqrt(2 * kalpha * valpha)) + \
-        (1 - phi) * (1 - 2/3 * np.sqrt(2 * kbeta * vbeta))
-    mu_eta_squared = phi * (1 + 2/3 * np.sqrt(2 * kalpha * valpha))**2 + \
-        (1 - phi) * (1 - 2/3 * np.sqrt(2 * kbeta * vbeta))**2
-
-    return mu_eta > 1 and mu_eta_squared < 1
-
-def show(infl, mu_avg, total = RUNS):
-    perc = infl / total * 100
-    print(f"infl {perc:.0f}%\tnon infl {100 - perc:.0f}%\tmu (avg): {mu_avg}")
+    return phi * 2/3 * np.sqrt(2) * (kalpha * valpha)**POWER - \
+        (1 - phi) * 2/3 * np.sqrt(2) * (kbeta * vbeta)**POWER
 
 def random_values():
-    print(f"runs: {RUNS}")
-    print(f"error: {EPS}")
-    print("---")
+    t = 1
+    
+    pos_mu = 0
+    pos_k = 0
+    edge_case = 0
+    # mu_history = []
 
-    infl = 0
-    root = 0
-    mu_history = []
-
-    for t in range(RUNS):
+    while True:
         phi = U(*PHI)
         kalpha = U(*KALPHA)
         kbeta = U(*KBETA)
@@ -53,33 +39,24 @@ def random_values():
         vbeta = U(*VBETA)
 
         m = mu(phi, kalpha, kbeta, valpha, vbeta)
-        mu_history.append(m)
+        # mu_history.append(m)
+        pos_mu += m > 0
+
         k = kappa(phi, kalpha, kbeta, valpha, vbeta)
+        pos_k += k > 0
 
-        # if m < 0 and k > 0:
+        if m < 0 and k > 0:
           # print(f"[mu={m}, kappa={k}] ({phi}, {kalpha}, {kbeta}, {valpha}, {vbeta})")
+          edge_case += 1
+          
+        if t % 100_000 == 0:
+            print(f"[{t}]")
+            print(f"μ > 0: {np.round(pos_mu / t * 100)}%")
+            print(f"κ > 0: {np.round(pos_k / t * 100)}%")
+            print(f"μ < 0 ∧ κ > 0: {edge_case / t * 100}%")
+            # print(f"μ (avg): {np.average(mu_history)}")
 
-        infl += m > 0
-        root += root_test(phi, kalpha, kbeta, valpha, vbeta)
-
-        if (t + 1) % 100_000 == 0:
-            show(infl, np.average(mu_history), t)
-            print("root", root)
-
-    show(infl)
-
-# def approach():
-#     phi = 15/16
-#     kalpha = 1/2
-#     kbeta = 0
-#     valpha = 0
-#     vbeta = 1
-
-#     for e in np.logspace(.1, 0, endpoint=False):
-#         e = e - 1
-#         m = mu(phi, kalpha - e, kbeta + e, valpha + e, vbeta - e)
-#         print("error", e, "μ", m) 
+        t += 1
 
 if __name__ == "__main__":
     random_values()
-    # approach()
